@@ -1,5 +1,4 @@
 const express = require("express");
-const MT19937 = require("./mt19937");
 const app = express();
 
 app.use(express.json());
@@ -10,11 +9,11 @@ let history = [];
 let cached = null;
 
 /* =========================
-   INDIA TIME (IST) – WALL CLOCK
+   INDIA TIME (IST)
    ========================= */
 function nowIST() {
   const utc = new Date();
-  return new Date(utc.getTime() + (5.5 * 60 * 60 * 1000)); // UTC +5:30
+  return new Date(utc.getTime() + (5.5 * 60 * 60 * 1000));
 }
 
 /* =========================
@@ -22,9 +21,9 @@ function nowIST() {
    ========================= */
 function getPeriod(d){
   const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2,"0");
+  const m = String(d.getMonth()+1).padStart(2,"0");
   const da = String(d.getDate()).padStart(2,"0");
-  const minutes = d.getHours() * 60 + d.getMinutes() + 1;
+  const minutes = d.getHours()*60 + d.getMinutes() + 1;
   return `${y}${m}${da}100010${String(minutes).padStart(3,"0")}`;
 }
 
@@ -36,29 +35,31 @@ function color(n){
 }
 
 /* =========================
-   MT19937 – HIGH FREQUENCY
-   (USA EAST – VIRGINIA DEPLOY ASSUMED)
+   SIMPLE PRNG
+   ========================= */
+let prngSeed = Date.now() % 2147483647;
+function prng(){
+  prngSeed = (prngSeed * 48271) % 2147483647;
+  return prngSeed;
+}
+
+/* =========================
+   HIGH FREQUENCY (PER MINUTE)
    =========================
-   - Execution: USA backend
-   - Time/Period: INDIA (IST)
-   - Same minute: most probable / frequent number
-   - Tie: 50–50
-   - Never blank
+   - Same minute window
+   - PRNG se multiple draws
+   - Jis number ki frequency sabse zyada
+   - Wahi final
+   - Tie = 50-50
 */
 function generateHighFrequency(){
   const d = nowIST();
 
-  const seed = Number(
-    `${d.getFullYear()}${d.getMonth()+1}${d.getDate()}${d.getHours()}${d.getMinutes()}`
-  );
-
-  const mt = new MT19937(seed);
-
-  const SAMPLES = 300; // stronger HF tendency
+  const SAMPLES = 300;
   const freq = Array(10).fill(0);
 
   for(let i = 0; i < SAMPLES; i++){
-    freq[mt.extractNumber() % 10]++;
+    freq[prng() % 10]++;
   }
 
   const max = Math.max(...freq);
@@ -81,8 +82,8 @@ function generateHighFrequency(){
 /* =========================
    ROUND LOGIC
    =========================
-   30s = PREVIOUS (LOCK)
-   00s = FINAL (HISTORY)
+   30s = PREVIOUS
+   00s = FINAL
 */
 setInterval(() => {
   const s = nowIST().getSeconds();
@@ -101,20 +102,20 @@ setInterval(() => {
 /* =========================
    API
    ========================= */
-app.post("/login", (req, res) => {
+app.post("/login",(req,res)=>{
   res.json({ ok: req.body.key === LOGIN_KEY });
 });
 
-app.get("/state", (req, res) => {
+app.get("/state",(req,res)=>{
   const d = nowIST();
   res.json({
-    serverTime: d.toLocaleString("en-IN"), // INDIA TIME SHOWN
+    serverTime: d.toLocaleString("en-IN"),
     countdown: 60 - d.getSeconds(),
     previous: cached,
     history
   });
 });
 
-app.listen(3000, () =>
-  console.log("SERVER RUNNING | IST PERIOD | USA EAST MT19937 HF")
-);
+app.listen(3000, () => {
+  console.log("SERVER RUNNING");
+});
