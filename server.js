@@ -10,7 +10,7 @@ let history = [];
 let cached = null;
 
 /* =========================
-   INDIA TIME (IST) – FIXED
+   INDIA TIME (IST) – WALL CLOCK
    ========================= */
 function nowIST() {
   const utc = new Date();
@@ -18,13 +18,13 @@ function nowIST() {
 }
 
 /* =========================
-   PERIOD / HELPERS
+   PERIOD (INDIA WALL CLOCK)
    ========================= */
 function getPeriod(d){
   const y = d.getFullYear();
-  const m = String(d.getMonth()+1).padStart(2,"0");
+  const m = String(d.getMonth() + 1).padStart(2,"0");
   const da = String(d.getDate()).padStart(2,"0");
-  const minutes = d.getHours()*60 + d.getMinutes() + 1;
+  const minutes = d.getHours() * 60 + d.getMinutes() + 1;
   return `${y}${m}${da}100010${String(minutes).padStart(3,"0")}`;
 }
 
@@ -37,34 +37,33 @@ function color(n){
 
 /* =========================
    MT19937 – HIGH FREQUENCY
-   (USA BACKEND EXECUTION)
+   (USA EAST – VIRGINIA DEPLOY ASSUMED)
    =========================
-   - Time/period = IST
-   - RNG runs on USA server
-   - Same minute: most frequent wins
-   - Tie: 50–50 (uniform)
+   - Execution: USA backend
+   - Time/Period: INDIA (IST)
+   - Same minute: most probable / frequent number
+   - Tie: 50–50
    - Never blank
 */
 function generateHighFrequency(){
   const d = nowIST();
 
-  // Seed uses IST minute (display logic),
-  // execution happens on USA backend
   const seed = Number(
     `${d.getFullYear()}${d.getMonth()+1}${d.getDate()}${d.getHours()}${d.getMinutes()}`
   );
+
   const mt = new MT19937(seed);
 
-  const SAMPLES = 200;
+  const SAMPLES = 300; // stronger HF tendency
   const freq = Array(10).fill(0);
 
-  for(let i=0;i<SAMPLES;i++){
+  for(let i = 0; i < SAMPLES; i++){
     freq[mt.extractNumber() % 10]++;
   }
 
   const max = Math.max(...freq);
   const candidates = [];
-  for(let i=0;i<10;i++){
+  for(let i = 0; i < 10; i++){
     if(freq[i] === max) candidates.push(i);
   }
 
@@ -89,11 +88,11 @@ setInterval(() => {
   const s = nowIST().getSeconds();
 
   if (s === 30 && !cached) {
-    cached = generateHighFrequency(); // PREVIOUS (locked)
+    cached = generateHighFrequency();
   }
 
   if (s === 0 && cached) {
-    history.unshift(cached);          // FINAL
+    history.unshift(cached);
     if (history.length > 50) history.pop();
     cached = null;
   }
@@ -109,7 +108,7 @@ app.post("/login", (req, res) => {
 app.get("/state", (req, res) => {
   const d = nowIST();
   res.json({
-    serverTime: d.toLocaleString("en-IN"), // IST shown correctly
+    serverTime: d.toLocaleString("en-IN"), // INDIA TIME SHOWN
     countdown: 60 - d.getSeconds(),
     previous: cached,
     history
@@ -117,5 +116,5 @@ app.get("/state", (req, res) => {
 });
 
 app.listen(3000, () =>
-  console.log("SERVER RUNNING (IST TIME + USA RNG + HIGH FREQUENCY)")
+  console.log("SERVER RUNNING | IST PERIOD | USA EAST MT19937 HF")
 );
