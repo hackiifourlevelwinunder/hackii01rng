@@ -17,16 +17,26 @@ function nowIST() {
 }
 
 /* =========================
-   PERIOD (MATCH WITH TIME)
-   =========================
-   Period = INDIA wall-clock minute + 1 (next round)
-*/
+   PERIOD with 5:30 AM RESET
+   ========================= */
 function getPeriod(d){
-  const y = d.getFullYear();
-  const m = String(d.getMonth()+1).padStart(2,"0");
-  const da = String(d.getDate()).padStart(2,"0");
-  const minuteIndex = (d.getHours() * 60 + d.getMinutes()) + 1; // match time
-  return `${y}${m}${da}100010${String(minuteIndex).padStart(3,"0")}`;
+  // Reset day at 5:30 AM IST
+  let periodDate = new Date(d);
+  const resetMinutes = 5 * 60 + 30;
+  const currentMinutes = d.getHours() * 60 + d.getMinutes();
+
+  if (currentMinutes < resetMinutes) {
+    periodDate.setDate(periodDate.getDate() - 1);
+  }
+
+  const y = periodDate.getFullYear();
+  const m = String(periodDate.getMonth()+1).padStart(2,"0");
+  const da = String(periodDate.getDate()).padStart(2,"0");
+
+  const minuteIndex = currentMinutes - resetMinutes + 1;
+  const finalIndex = minuteIndex > 0 ? minuteIndex : (1440 - resetMinutes + currentMinutes + 1);
+
+  return `${y}${m}${da}100010${String(finalIndex).padStart(3,"0")}`;
 }
 
 function bigSmall(n){ return n >= 5 ? "Big" : "Small"; }
@@ -37,7 +47,7 @@ function color(n){
 }
 
 /* =========================
-   SIMPLE PRNG (INDIA)
+   REAL PRNG (WINGO / JALWA STYLE)
    ========================= */
 let prngSeed = Date.now() % 2147483647;
 function prng(){
@@ -45,29 +55,12 @@ function prng(){
   return prngSeed;
 }
 
-/* =========================
-   1-MIN HIGH FREQUENCY
-   ========================= */
-function generateHighFrequency(){
+function generateRound(){
   const d = nowIST();
-
-  const SAMPLES = 300;
-  const freq = Array(10).fill(0);
-
-  for(let i=0;i<SAMPLES;i++){
-    freq[prng() % 10]++;
-  }
-
-  const max = Math.max(...freq);
-  const candidates = [];
-  for(let i=0;i<10;i++){
-    if(freq[i] === max) candidates.push(i);
-  }
-
-  const pick = candidates[Math.floor(Math.random() * candidates.length)];
+  const pick = prng() % 10;
 
   return {
-    period: getPeriod(d),     // ⬅️ PERIOD MATCHED TO TIME
+    period: getPeriod(d),
     number: pick,
     bigSmall: bigSmall(pick),
     color: color(pick),
@@ -85,7 +78,7 @@ setInterval(()=>{
   const s = nowIST().getSeconds();
 
   if(s === 30 && !cached){
-    cached = generateHighFrequency();
+    cached = generateRound();
   }
 
   if(s === 0 && cached){
@@ -112,4 +105,6 @@ app.get("/state",(req,res)=>{
   });
 });
 
-app.listen(3000, ()=> console.log("SERVER RUNNING | PERIOD MATCHED TO TIME"));
+app.listen(3000, ()=> {
+  console.log("SERVER RUNNING | PERIOD RESET 5:30 AM IST");
+});
