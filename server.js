@@ -17,14 +17,16 @@ function nowIST() {
 }
 
 /* =========================
-   PERIOD (INDIA WALL CLOCK)
-   ========================= */
+   PERIOD (MATCH WITH TIME)
+   =========================
+   Period = INDIA wall-clock minute + 1 (next round)
+*/
 function getPeriod(d){
   const y = d.getFullYear();
   const m = String(d.getMonth()+1).padStart(2,"0");
   const da = String(d.getDate()).padStart(2,"0");
-  const minutes = d.getHours()*60 + d.getMinutes() + 1;
-  return `${y}${m}${da}100010${String(minutes).padStart(3,"0")}`;
+  const minuteIndex = (d.getHours() * 60 + d.getMinutes()) + 1; // match time
+  return `${y}${m}${da}100010${String(minuteIndex).padStart(3,"0")}`;
 }
 
 function bigSmall(n){ return n >= 5 ? "Big" : "Small"; }
@@ -35,7 +37,7 @@ function color(n){
 }
 
 /* =========================
-   SIMPLE PRNG
+   SIMPLE PRNG (INDIA)
    ========================= */
 let prngSeed = Date.now() % 2147483647;
 function prng(){
@@ -44,34 +46,28 @@ function prng(){
 }
 
 /* =========================
-   HIGH FREQUENCY (PER MINUTE)
-   =========================
-   - Same minute window
-   - PRNG se multiple draws
-   - Jis number ki frequency sabse zyada
-   - Wahi final
-   - Tie = 50-50
-*/
+   1-MIN HIGH FREQUENCY
+   ========================= */
 function generateHighFrequency(){
   const d = nowIST();
 
   const SAMPLES = 300;
   const freq = Array(10).fill(0);
 
-  for(let i = 0; i < SAMPLES; i++){
+  for(let i=0;i<SAMPLES;i++){
     freq[prng() % 10]++;
   }
 
   const max = Math.max(...freq);
   const candidates = [];
-  for(let i = 0; i < 10; i++){
+  for(let i=0;i<10;i++){
     if(freq[i] === max) candidates.push(i);
   }
 
   const pick = candidates[Math.floor(Math.random() * candidates.length)];
 
   return {
-    period: getPeriod(d),
+    period: getPeriod(d),     // ⬅️ PERIOD MATCHED TO TIME
     number: pick,
     bigSmall: bigSmall(pick),
     color: color(pick),
@@ -85,19 +81,19 @@ function generateHighFrequency(){
    30s = PREVIOUS
    00s = FINAL
 */
-setInterval(() => {
+setInterval(()=>{
   const s = nowIST().getSeconds();
 
-  if (s === 30 && !cached) {
+  if(s === 30 && !cached){
     cached = generateHighFrequency();
   }
 
-  if (s === 0 && cached) {
+  if(s === 0 && cached){
     history.unshift(cached);
-    if (history.length > 50) history.pop();
+    if(history.length > 50) history.pop();
     cached = null;
   }
-}, 1000);
+},1000);
 
 /* =========================
    API
@@ -116,6 +112,4 @@ app.get("/state",(req,res)=>{
   });
 });
 
-app.listen(3000, () => {
-  console.log("SERVER RUNNING");
-});
+app.listen(3000, ()=> console.log("SERVER RUNNING | PERIOD MATCHED TO TIME"));
