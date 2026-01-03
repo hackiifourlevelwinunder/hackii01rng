@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>3 LEVEL WIN FIX (hackii)</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap');
+
+body{
+  margin:0;
+  background:#000;
+  color:#00ff9c;
+  font-family:'Share Tech Mono', monospace;
+  overflow:hidden;
+}
+
+.matrix{
+  position:fixed;
+  inset:0;
+  background:radial-gradient(circle at center,#001a10 0%,#000 70%);
+  z-index:-2;
+}
+
+.scan{
+  position:fixed;
+  inset:0;
+  background:repeating-linear-gradient(
+    to bottom,
+    rgba(0,255,150,0.03),
+    rgba(0,255,150,0.03) 1px,
+    transparent 2px,
+    transparent 4px
+  );
+  pointer-events:none;
+  z-index:-1;
+}
+
+.box{
+  margin:20px auto;
+  width:340px;
+  padding:18px;
+  border:1px solid #00ff9c;
+  box-shadow:0 0 25px #00ff9c;
+  background:rgba(0,20,10,0.7);
+}
+
+h3{
+  margin:5px 0 10px;
+  text-shadow:0 0 10px #00ff9c;
+}
+
+input,button{
+  width:100%;
+  padding:10px;
+  margin-top:8px;
+  background:#000;
+  color:#00ff9c;
+  border:1px solid #00ff9c;
+  font-family:inherit;
+}
+
+button:hover{
+  background:#00ff9c;
+  color:#000;
+}
+
+.error{color:#ff004c}
+
+#clock,#count{
+  margin:6px 0;
+}
+
+#count{
+  font-size:22px;
+  text-shadow:0 0 10px #00fff0;
+}
+
+.prev{
+  margin:8px 0;
+  color:#ffd700;
+  text-shadow:0 0 12px #ffd700;
+}
+
+table{
+  width:100%;
+  border-collapse:collapse;
+  margin-top:10px;
+}
+
+th,td{
+  border:1px solid #003322;
+  padding:6px;
+}
+
+thead{
+  background:#001a10;
+}
+
+tbody tr:nth-child(1){
+  background:#002b1a;
+}
+</style>
+</head>
+<body>
+
+<div class="matrix"></div>
+<div class="scan"></div>
+
+<div class="box" id="loginBox">
+  <h3>3 LEVEL WIN FIX (hackii)</h3>
+  <input id="key" placeholder="ENTER LOGIN KEY">
+  <button onclick="login()">ACCESS</button>
+  <div class="error" id="err"></div>
+</div>
+
+<div class="box" id="game" style="display:none">
+  <div id="clock"></div>
+  <div id="count"></div>
+  <div class="prev" id="prev"></div>
+
+  <h3>GAME HISTORY</h3>
+  <table>
+    <thead>
+      <tr><th>Period</th><th>No</th><th>B/S</th><th>Color</th></tr>
+    </thead>
+    <tbody id="hist"></tbody>
+  </table>
+</div>
+
+<script>
+function login(){
+fetch("/login",{method:"POST",headers:{'Content-Type':'application/json'},
+body:JSON.stringify({key:key.value})})
+.then(r=>r.json()).then(d=>{
+if(d.ok){
+loginBox.style.display="none";
+game.style.display="block";
+tick();setInterval(tick,1000);
+}else err.innerText="ACCESS DENIED";
+})
+}
+
+function tick(){
+fetch("/state").then(r=>r.json()).then(d=>{
+const t=new Date(d.serverTime);
+clock.innerText="TIME: "+t.toLocaleString();
+count.innerText="COUNTDOWN: "+d.countdown+"s";
+prev.innerHTML=d.previous?"PREVIOUS (FINAL): "+d.previous.number:"PREVIOUS: --";
+
+hist.innerHTML="";
+d.history.forEach(x=>{
+hist.innerHTML+=`<tr>
+<td>${x.period}</td><td>${x.number}</td><td>${x.bigSmall}</td><td>${x.color.join(",")}</td>
+</tr>`;
+})
+})
+}
+</script>
+
+</body>
+</html>
