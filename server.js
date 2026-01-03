@@ -1,4 +1,5 @@
 const express = require("express");
+const crypto = require("crypto");
 const app = express();
 
 app.use(express.json());
@@ -17,14 +18,14 @@ function nowIST() {
 }
 
 /* =========================
-   PERIOD with 5:30 AM RESET
+   PERIOD with 5:30 AM RESET (IST)
    ========================= */
 function getPeriod(d){
-  // Reset day at 5:30 AM IST
-  let periodDate = new Date(d);
-  const resetMinutes = 5 * 60 + 30;
+  const resetMinutes = 5 * 60 + 30; // 5:30 AM
   const currentMinutes = d.getHours() * 60 + d.getMinutes();
 
+  // Decide period date
+  const periodDate = new Date(d);
   if (currentMinutes < resetMinutes) {
     periodDate.setDate(periodDate.getDate() - 1);
   }
@@ -33,10 +34,11 @@ function getPeriod(d){
   const m = String(periodDate.getMonth()+1).padStart(2,"0");
   const da = String(periodDate.getDate()).padStart(2,"0");
 
-  const minuteIndex = currentMinutes - resetMinutes + 1;
-  const finalIndex = minuteIndex > 0 ? minuteIndex : (1440 - resetMinutes + currentMinutes + 1);
+  // Minute index from reset
+  const idx = currentMinutes - resetMinutes + 1;
+  const minuteIndex = idx > 0 ? idx : (1440 - resetMinutes + currentMinutes + 1);
 
-  return `${y}${m}${da}100010${String(finalIndex).padStart(3,"0")}`;
+  return `${y}${m}${da}100010${String(minuteIndex).padStart(3,"0")}`;
 }
 
 function bigSmall(n){ return n >= 5 ? "Big" : "Small"; }
@@ -47,17 +49,40 @@ function color(n){
 }
 
 /* =========================
-   REAL PRNG (WINGO / JALWA STYLE)
+   CRYPTO RNG (0–9)
    ========================= */
-let prngSeed = Date.now() % 2147483647;
-function prng(){
-  prngSeed = (prngSeed * 48271) % 2147483647;
-  return prngSeed;
+function cryptoRand0to9(){
+  // Uniform cryptographic random integer 0–9
+  return crypto.randomInt(0, 10);
 }
 
-function generateRound(){
+/* =========================
+   HIGH FREQUENCY (PER MINUTE)
+   =========================
+   - 1 minute window (IST)
+   - Crypto RNG se multiple draws
+   - Jis number ki frequency sabse zyada
+   - Wahi FINAL
+   - Tie = 50–50 (uniform)
+   - Blank kabhi nahi
+*/
+function generateHighFrequency(){
   const d = nowIST();
-  const pick = prng() % 10;
+
+  const SAMPLES = 300; // strong HF within the minute
+  const freq = Array(10).fill(0);
+
+  for(let i = 0; i < SAMPLES; i++){
+    freq[cryptoRand0to9()]++;
+  }
+
+  const max = Math.max(...freq);
+  const candidates = [];
+  for(let i = 0; i < 10; i++){
+    if(freq[i] === max) candidates.push(i);
+  }
+
+  const pick = candidates[Math.floor(Math.random() * candidates.length)];
 
   return {
     period: getPeriod(d),
@@ -78,11 +103,11 @@ setInterval(()=>{
   const s = nowIST().getSeconds();
 
   if(s === 30 && !cached){
-    cached = generateRound();
+    cached = generateHighFrequency(); // PREVIOUS (locked)
   }
 
   if(s === 0 && cached){
-    history.unshift(cached);
+    history.unshift(cached);          // FINAL
     if(history.length > 50) history.pop();
     cached = null;
   }
@@ -106,5 +131,5 @@ app.get("/state",(req,res)=>{
 });
 
 app.listen(3000, ()=> {
-  console.log("SERVER RUNNING | PERIOD RESET 5:30 AM IST");
+  console.log("SERVER RUNNING | CRYPTO RNG | HIGH FREQUENCY | IST | 5:30 RESET");
 });
